@@ -1,14 +1,10 @@
 import streamlit as st
-import os
-import PyPDF2
-from transformers import pipeline
-import pytesseract
+from utils.extract_text import extract_text_from_pdf
+from utils.ocr import perform_ocr
+from utils.summarize import summarize_text
+from utils.question_answer import answering
+from utils.rouge_score import calculate_rouge
 from PIL import Image
-
-# Load pre-trained model and tokenizer
-checkpoint = "facebook/bart-large-cnn"
-summarization_model = pipeline('summarization', model=checkpoint)
-question_answerer = pipeline("question-answering", model='distilbert-base-cased-distilled-squad')
 
 # Customizing Streamlit theme
 st.markdown(
@@ -25,34 +21,6 @@ unsafe_allow_html=True
 # Streamlit UI
 st.title("Text Summarizer using LLM")
 
-# Function to extract text from PDF
-def extract_text_from_pdf(pdf_file):
-    with pdf_file as file:
-        pdf_reader = PyPDF2.PdfReader(file)
-        text = ''
-        for page in pdf_reader.pages:
-            text += page.extract_text()
-    return text
-
-# Function to perform OCR on uploaded image
-def perform_ocr(image):
-    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-    text = pytesseract.image_to_string(image, lang='eng', config='--psm 3')
-    return text
-
-# Function to summarize text
-def summarize_text(text):
-    summary = summarization_model(text, min_length=256, max_length=512, do_sample=True)[0]['summary_text']
-    return summary
-
-# Function to answer questions
-def answering(tex):
-    question = st.text_input("Enter your question:")
-    if st.button("Answer Question"):
-        result = question_answerer(question=question, context=tex)
-        st.subheader("Answer:")
-        st.write(result["answer"])
-
 # Function to read text files from a folder and combine them into a single text
 def read_files_from_folder(files):
     combined_text = ""
@@ -67,7 +35,6 @@ def read_files_from_folder(files):
             image = Image.open(file)
             combined_text += perform_ocr(image)
     return combined_text
-
 
 # Radio button for selecting input format
 input_format = st.sidebar.radio("Select input format:", ('Text', 'PDF', 'Image', 'Folder'))
@@ -84,6 +51,9 @@ if input_format == 'Text':
             summary = summarize_text(text)
             st.subheader("Summary:")
             st.write(summary)
+            rouge_score = calculate_rouge(text, summary)
+            st.subheader("ROUGE Score:")
+            st.json(rouge_score)
         answering(text)
 
 elif input_format == 'PDF':
@@ -97,6 +67,9 @@ elif input_format == 'PDF':
             summary = summarize_text(text)
             st.subheader("Summary:")
             st.write(summary)
+            rouge_score = calculate_rouge(text, summary)
+            st.subheader("ROUGE Score:")
+            st.json(rouge_score)
         answering(text)
 
 elif input_format == 'Image':
@@ -111,6 +84,9 @@ elif input_format == 'Image':
             summary = summarize_text(text)
             st.subheader("Summary:")
             st.write(summary)
+            rouge_score = calculate_rouge(text, summary)
+            st.subheader("ROUGE Score:")
+            st.json(rouge_score)
         answering(text)
 
 elif input_format == 'Folder':
@@ -124,4 +100,7 @@ elif input_format == 'Folder':
             summary = summarize_text(text)
             st.subheader("Summary:")
             st.write(summary)
+            rouge_score = calculate_rouge(text, summary)
+            st.subheader("ROUGE Score:")
+            st.json(rouge_score)
         answering(text)
